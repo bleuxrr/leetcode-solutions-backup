@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 )
 
 var lang = "golang"
@@ -164,33 +165,45 @@ func main() {
 	limit := 50
 	qList := queryQuestionList(skip, limit, client)
 	total := getQuestionListTotal(&qList)
-	fmt.Printf("backup %d solutions\n", total)
-
+	fmt.Printf("you have %d solved problems\n", total)
+	if total == 0 {
+		fmt.Println("you dont have any solved problems")
+		return
+	}
 	//get all ac questions
 	questionList := getQuestionList(&qList)
-	for i := 1; i < (total+49)/50; i++ {
+	pages := (total + 49) / 50
+	fmt.Printf("get %d/%d page of the solved problems list\n", 1, pages)
+	for i := 1; i < pages; i++ {
 		skip = i * 50
 		qList = queryQuestionList(skip, limit, client)
 		questionList = append(questionList, getQuestionList(&qList)...)
+		fmt.Printf("get %d/%d page of the solved problems list\n", i+1, pages)
 	}
 
+	wg := sync.WaitGroup{}
+	ch := make(chan int, 10)
 	//get questionId and questionFrontendId
 	for i := 0; i < len(questionList); i++ {
-		body := queryQuestionInfo(questionList[i].titleSlug, client)
-		updateQuestion(&questionList[i], &body)
-		// fmt.Printf("query %d/%d problem info\n", i+1, total)
+		wg.Add(1)
+		ch <- i
+		go func(q question, i int, ch chan int) {
+			body := queryQuestionInfo(q.titleSlug, client)
+			updateQuestion(&q, &body)
 
-		body = querySolution(questionList[i].questionId, client)
-		if len(body) == 0 {
-			fmt.Printf("%d/%d problem %s doesn't support %s language\n", i+1, total, questionList[i].titleSlug, lang)
-			continue
-		}
-		questionFrontendId := fmt.Sprintf("%04d", questionList[i].questionFrontendId)
-		dirName := questionFrontendId + "-" + questionList[i].titleSlug
-		// dirName = strings.ReplaceAll(dirName, " ", "-")
-		fileName := questionFrontendId + "-" + questionList[i].titleSlug + ext[lang]
-		saveSolution(&body, dirName, fileName)
-		fmt.Printf("%d/%d problems saved\n", i+1, total)
+			body = querySolution(q.questionId, client)
+			if len(body) == 0 {
+				fmt.Printf("%d/%d problem %s doesn't support %s language\n", i+1, total, q.titleSlug, lang)
+			} else {
+				questionFrontendId := fmt.Sprintf("%04d", q.questionFrontendId)
+				dirName := questionFrontendId + "-" + q.titleSlug
+				fileName := questionFrontendId + "-" + q.titleSlug + ext[lang]
+				saveSolution(&body, dirName, fileName)
+				fmt.Printf("%d/%d problems saved\n", i+1, total)
+			}
+			<-ch
+			wg.Done()
+		}(questionList[i], i, ch)
 	}
-
+	wg.Wait()
 }
