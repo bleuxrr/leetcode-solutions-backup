@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -33,7 +32,7 @@ func getCookie() string {
 		log.Fatal(err)
 	}
 	defer configFile.Close()
-	byteValue, _ := ioutil.ReadAll(configFile)
+	byteValue, _ := io.ReadAll(configFile)
 	var config map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &config)
 	return config["cookie"].(string)
