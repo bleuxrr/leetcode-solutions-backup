@@ -8,5 +8,4 @@ how to use:
     3. go run .
 
 //TODO
-//add concurrency
 //add flag for different language
