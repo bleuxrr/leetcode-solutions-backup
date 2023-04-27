@@ -12,12 +12,33 @@ import (
 	"sync"
 )
 
-var lang = "golang"
+var lang = ""
 var cookie = ""
 var client *http.Client
 
 var ext = map[string]string{
-	"golang": ".go",
+	"cpp":        ".cpp",
+	"java":       ".java",
+	"python":     ".py",
+	"python3":    ".py",
+	"c":          ".c",
+	"csharp":     ".cs",
+	"javascript": ".js",
+	"ruby":       ".rb",
+	"swift":      ".swift",
+	"golang":     ".go",
+	"scala":      ".sc",
+	"kotlin":     ".kt",
+	"rust":       ".rs",
+	"php":        ".php",
+	"typescript": ".ts",
+	"racket":     ".rkt",
+	"erlang":     ".erl",
+	"elixir":     ".ex",
+	"dart":       ".dart",
+	"mysql":      ".sql",
+	"mssql":      ".mdf",
+	"oraclesql":  ".sql",
 }
 
 type question struct {
@@ -27,7 +48,7 @@ type question struct {
 	titleSlug string
 }
 
-func getCookie() string {
+func getConfig() {
 	configFile, err := os.Open("config.json")
 	if err != nil {
 		log.Fatal(err)
@@ -36,7 +57,8 @@ func getCookie() string {
 	byteValue, _ := io.ReadAll(configFile)
 	var config map[string]interface{}
 	json.Unmarshal([]byte(byteValue), &config)
-	return config["cookie"].(string)
+	cookie = config["cookie"].(string)
+	lang = config["lang"].(string)
 }
 
 func queryQuestionList(skip, limit int, client *http.Client) []byte {
@@ -158,7 +180,11 @@ func saveSolution(body *[]byte, dirName string, fileName string) {
 }
 
 func main() {
-	cookie = getCookie()
+	getConfig()
+	if len(cookie) == 0 || len(lang) == 0 {
+		fmt.Println("check your config.json file")
+		return
+	}
 	client = &http.Client{}
 
 	skip := 0
